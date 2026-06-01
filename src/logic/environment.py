@@ -2,14 +2,7 @@
 import os
 
 def load_world(file_path):
-    """Lee el archivo de texto y devuelve (mundo, inicio, pasajeros, destino).
-
-    Args:
-        file_path (str): Ruta relativa o absoluta al archivo .txt del mundo.
-
-    Retorna:
-        tuple: (matriz, inicio, lista_pasajeros, destino)
-    """
+    """Lee un archivo .txt y devuelve (mundo, inicio, pasajeros, destino)."""
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Error: El archivo '{file_path}' no existe.")
 
@@ -30,14 +23,7 @@ def load_world(file_path):
 
 
 def validate_matrix(matrix):
-    """Valida que la matriz cumpla las reglas del proyecto (10x10, valores y conteos).
-
-    Reglas comprobadas:
-    - 10 filas y 10 columnas.
-    - Valores permitidos: 0,1,2,3,4,5.
-    - Exactamente 1 inicio (2) y 1 destino (5).
-    - Al menos 1 pasajero (4).
-    """
+    """Valida reglas del proyecto: tamaño, valores y conteos esperados."""
     if len(matrix) != 10:
         raise ValueError(f"Error de validación: la matriz debe tener exactamente 10 filas. Encontradas {len(matrix)}.")
 
@@ -68,11 +54,7 @@ def validate_matrix(matrix):
 
 
 def extract_entities(matrix):
-    """Extrae coordenadas de inicio, pasajeros y destino y las devuelve junto con la matriz.
-
-    Retorna:
-        (matriz, inicio, lista_pasajeros, destino)
-    """
+    """Extrae coordenadas de inicio, pasajeros y destino."""
     start = None
     destination = None
     passengers = []
