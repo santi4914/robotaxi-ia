@@ -1,0 +1,29 @@
+# Archivos compilados de Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Archivos de configuración locales
+*.env
+
+# Archivos de logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.swp
+
+# Archivos de bases de datos locales
+*.sqlite3
+
+# Archivos de Jupyter
+.ipynb_checkpoints/
+
+# Configuración de IDEs
+.vscode/
+.idea/
