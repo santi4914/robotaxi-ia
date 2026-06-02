@@ -6,6 +6,7 @@ from logic.environment import load_world
 from logic.algorithms.uninformed_search import amplitud, costo_uniforme, profundidad_evitando_ciclos
 from logic.algorithms.informed_search import avara, a_estrella
 from utils.stats_logger import StatsTracker
+from ui.tree_viewer import TreeViewer
 
 # --- Mapeo de algoritmos ---
 ALGORITMOS = {
@@ -51,6 +52,10 @@ def main():
     # Crear pantalla de bienvenida
     welcome_screen = WelcomeScreen(ANCHO, ALTO)
     
+    datos_ultimo_arbol = None
+    nombre_ultimo_algo = ""
+    camino_ultimo = []
+
     # Cargar lista de mundos disponibles
     mundos_disponibles = cargar_mundos_disponibles(data_dir)
     if not mundos_disponibles:
@@ -153,14 +158,15 @@ def main():
                         else:
                             camino, nodos_expandidos, arbol_expansion, costo_final = resultado
                             
-                            # Generar reporte usando StatsTracker
-                            report = tracker.generate_report(algo_nombre, nodos_expandidos, arbol_expansion, costo_final)
+                            # Guardamos los datos para la ventana del árbol
+                            datos_ultimo_arbol = arbol_expansion
+                            nombre_ultimo_algo = algo_nombre
+                            camino_ultimo = camino
+                            renderer.arbol_disponible = True # Activamos el botón en la UI
                             
-                            # Actualizar reportes con el generado
+                            report = tracker.generate_report(algo_nombre, nodos_expandidos, arbol_expansion, costo_final)
                             reportes.update(report)
                             reportes["Estado"] = "Completado"
-                            
-                            # Inyectar el camino al motor gráfico
                             renderer.iniciar_animacion(camino)
                     
                     except Exception as e:
@@ -179,6 +185,16 @@ def main():
                     "Costo de Solución": "-",
                     "Estado": "Reseteado"
                 }
+
+            elif accion == "VER_ARBOL":
+                if datos_ultimo_arbol:
+                    # Instanciamos el visualizador externo y lanzamos su ventana síncrona
+                    viewer = TreeViewer(datos_ultimo_arbol, nombre_ultimo_algo, camino_ultimo)
+                    viewer.mostrar_ventana()
+                    
+                    # CORRECCIÓN: Quitamos el "self." porque estamos en main()
+                    pygame.display.set_mode((ANCHO, ALTO)) 
+                    pygame.display.set_caption("Robotaxi Zoox - Simulador IA")
             
             # --- ACTUALIZAR Y DIBUJAR SIMULACIÓN ---
             renderer.actualizar(dt)
