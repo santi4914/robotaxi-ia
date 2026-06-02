@@ -6,7 +6,9 @@ class TreeViewer:
         self.arbol_raw = arbol_datos
         self.algoritmo_nombre = algoritmo_nombre
         self.camino_solucion = set(camino_solucion)  # Para resaltar la solución en otro color
-        
+        self.camino_lista = camino_solucion  
+        self.camino_solucion_set = set(camino_solucion)
+
         # Configuración de ventana
         self.ANCHO, self.ALTO = 1200, 800
         self.COLOR_BG = (240, 240, 245)
@@ -68,6 +70,26 @@ class TreeViewer:
                 x = 50 + int((i + 1) * distancia_x)
                 self.posiciones_nodos[nodo] = (x, y)
 
+    def _generar_texto_ruta(self) -> str:
+        """Construye una cadena de texto elegante con la secuencia de coordenadas."""
+        if not self.camino_lista:
+            return "No se encontró un camino válido."
+            
+        pasos_formateados = []
+        for i, coord in enumerate(self.camino_lista):
+            r, c = coord
+            # Si es el primer nodo
+            if i == 0:
+                pasos_formateados.append(f"({r},{c}) [Inicio]")
+            # Si es el último nodo
+            elif i == len(self.camino_lista) - 1:
+                pasos_formateados.append(f"({r},{c}) [Meta 🏁]")
+            else:
+                pasos_formateados.append(f"({r},{c})")
+                
+        # Unimos todo con una flecha elegante
+        return " ➔ ".join(pasos_formateados)
+
     def mostrar_ventana(self):
         """Abre una ventana secundaria síncrona para visualizar el flujo."""
         ventana_arbol = pygame.display.set_mode((self.ANCHO, self.ALTO))
@@ -125,7 +147,7 @@ class TreeViewer:
                 x, y = pos[0] + offset_x, pos[1] + offset_y
                 
                 # Determinar color: ¿Es parte de la solución final?
-                es_solucion = (estado[0], estado[1]) in self.camino_solucion
+                es_solucion = (estado[0], estado[1]) in self.camino_solucion_set
                 color = self.COLOR_NODO_SOLUCION if es_solucion else self.COLOR_NODO
                 
                 pygame.draw.circle(ventana_arbol, color, (x, y), 18)
@@ -141,6 +163,31 @@ class TreeViewer:
             ventana_arbol.blit(tit, (20, 20))
             instrucciones = fuente_nodo.render("Arrastra con el clic izquierdo para mover el árbol. Presiona ESC para volver.", True, (100,100,100))
             ventana_arbol.blit(instrucciones, (20, 50))
+
+            # 3. Dibujar el Panel de la Ruta Completa
+            texto_ruta_completa = self._generar_texto_ruta()
+            
+            # Ajuste de envoltura de texto simple para que no se salga de la pantalla
+            ancho_max_caracteres = 110  # Cantidad de caracteres por línea aprox.
+            lineas_ruta = [texto_ruta_completa[i:i+ancho_max_caracteres] for i in range(0, len(texto_ruta_completa), ancho_max_caracteres)]
+            
+            # Dibujamos un fondo sutil para la sección de la ruta
+            alto_panel_ruta = 40 + (len(lineas_ruta) * 20)
+            rect_fondo_ruta = pygame.Rect(20, self.ALTO - alto_panel_ruta - 20, self.ANCHO - 40, alto_panel_ruta)
+            pygame.draw.rect(ventana_arbol, (230, 230, 235), rect_fondo_ruta, border_radius=6)
+            pygame.draw.rect(ventana_arbol, (200, 200, 205), rect_fondo_ruta, width=1, border_radius=6)
+            
+            # Renderizar el subtítulo de la ruta
+            lbl_ruta_tit = fuente_nodo.render("RUTA COMPLETA CRONOLÓGICA:", True, (100, 100, 100))
+            ventana_arbol.blit(lbl_ruta_tit, (rect_fondo_ruta.left + 15, rect_fondo_ruta.top + 10))
+            
+            # Renderizar cada línea de la ruta de manera secuencial
+            y_texto = rect_fondo_ruta.top + 30
+            fuente_ruta_texto = pygame.font.SysFont('courier', 12, bold=True) # Fuente monoespaciada para coordenadas
+            for linea in lineas_ruta:
+                txt_linea_surf = fuente_ruta_texto.render(linea, True, (40, 40, 45))
+                ventana_arbol.blit(txt_linea_surf, (rect_fondo_ruta.left + 15, y_texto))
+                y_texto += 18
 
             pygame.display.flip()
             reloj_interno.tick(60)
