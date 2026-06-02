@@ -23,7 +23,7 @@ def avara(mundo, inicio, pasajeros_totales, destino):
 
         # Meta [cite: 8, 26]
         if len(recogidos_tupla) == len(pasajeros_totales) and mundo[r][c] == 5:
-            return camino + [(r, c)], nodos_expandidos, arbol_expansion
+            return camino + [(r, c)], nodos_expandidos, arbol_expansion, None
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]: # [cite: 16]
             nr, nc = r + dr, c + dc
@@ -62,7 +62,7 @@ def a_estrella(mundo, inicio, pasajeros_totales, destino):
 
         # Meta [cite: 8, 26]
         if len(recogidos_tupla) == len(pasajeros_totales) and mundo[r][c] == 5:
-            return camino + [(r, c)], nodos_expandidos, g, arbol_expansion
+            return camino + [(r, c)], nodos_expandidos, arbol_expansion, g
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]: # [cite: 16]
             nr, nc = r + dr, c + dc

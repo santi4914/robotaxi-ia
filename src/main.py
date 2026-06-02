@@ -1,58 +1,87 @@
 import sys
 import pygame
-from ui.renderer import Renderer
+import os
+from ui.renderer import Renderer, WelcomeScreen
+from logic.environment import load_world
+from logic.algorithms.uninformed_search import amplitud, costo_uniforme, profundidad_evitando_ciclos
+from logic.algorithms.informed_search import avara, a_estrella
+from utils.stats_logger import StatsTracker
 
-# --- DATOS DE PRUEBA HASTA QUE SE CONECTEN LOS ALGORITMOS ---
-# Matriz de prueba (basada en el ejemplo del documento)
-MATRIZ_PRUEBA = [
-    [4, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [0, 1, 1, 0, 0, 0, 3, 0, 0, 0],
-    [2, 1, 1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 0, 0, 0, 3, 0, 0, 0, 3, 0],
-    [0, 1, 1, 0, 1, 1, 1, 1, 1, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 5],
-    [4, 1, 1, 1, 1, 1, 0, 1, 1, 1],
-    [0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-    [0, 0, 0, 1, 0, 0, 0, 0, 0, 1]
-]
+# --- Mapeo de algoritmos ---
+ALGORITMOS = {
+    "Amplitud": amplitud,
+    "Costo Uniforme": costo_uniforme,
+    "Profundidad": profundidad_evitando_ciclos,
+    "Avara": avara,
+    "A*": a_estrella
+}
 
-# Camino simulado para probar la animación y la UI en esta fase frontend
-CAMINO_PRUEBA = [
-    (2,0), (3,0), (4,0), (5,0), (6,0), # Recoge Pasajero en (6,0)
-    (5,0), (4,0), (3,0), (2,0), (1,0), (0,0), # Recoge Pasajero en (0,0)
-    (1,0), (2,0), (3,0), (3,1), (3,2), (3,3), (2,3), (1,3), (1,4),
-    (1,5), (2,5), (3,5), (3,6), (3,7), (4,7), (5,7), (5,8), (5,9) # Destino (5,9)
-]
+def cargar_mundos_disponibles(data_dir):
+    """Retorna lista de archivos .txt disponibles en la carpeta data."""
+    mundos = []
+    if os.path.exists(data_dir):
+        for archivo in os.listdir(data_dir):
+            if archivo.endswith('.txt'):
+                mundos.append(archivo)
+    return sorted(mundos)
+
+def validar_y_cargar_mapa(data_dir, nombre_mapa):
+    """Valida y carga un mapa. Retorna (éxito, mundo, inicio, pasajeros, destino, error_msg)."""
+    try:
+        ruta_mapa = os.path.join(data_dir, nombre_mapa)
+        mundo, inicio, pasajeros, destino = load_world(ruta_mapa)
+        return True, mundo, inicio, pasajeros, destino, None
+    except Exception as e:
+        return False, None, None, None, None, str(e)
 
 def main():
+    # Inicialización de pygame
+    pygame.init()
+    
     # Inicialización de la ventana principal
-    ANCHO, ALTO = 1050, 720
-    renderer = Renderer(ANCHO, ALTO)
+    ANCHO, ALTO = 1150, 720
+    screen = pygame.display.set_mode((ANCHO, ALTO))
+    pygame.display.set_caption("Robotaxi Zoox - Simulador IA")
     reloj = pygame.time.Clock()
     FPS = 60
     
-    # Estado inicial de la aplicación
-    algoritmos = ["Amplitud", "Costo Uniforme", "Profundidad", "Avara", "A*"]
-    indice_algo = 0
+    # Rutas
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
     
-    # Reportes iniciales (vacíos)
+    # Crear pantalla de bienvenida
+    welcome_screen = WelcomeScreen(ANCHO, ALTO)
+    
+    # Cargar lista de mundos disponibles
+    mundos_disponibles = cargar_mundos_disponibles(data_dir)
+    if not mundos_disponibles:
+        print("Error: No hay archivos .txt en la carpeta data/")
+        return
+    
+    welcome_screen.set_mapas_disponibles(mundos_disponibles)
+    
+    # Variables de estado
+    en_pantalla_bienvenida = True
+    renderer = None
+    mundo_actual = None
+    inicio = None
+    pasajeros = None
+    destino = None
+    
+    # Estado de la simulación
+    indice_algo = 0
+    tracker = StatsTracker()
     reportes = {
-        "Estado": "Esperando inicio...",
+        "Algoritmo": "-",
         "Nodos Expandidos": "-",
-        "Profundidad": "-",
+        "Profundidad del Árbol": "-",
         "Tiempo de Cómputo": "-",
-        "Costo de Solución": "-"
+        "Costo de Solución": "-",
+        "Estado": "Esperando inicio..."
     }
-
-    # Cargar el entorno de prueba a la interfaz
-    renderer.cargar_mundo(MATRIZ_PRUEBA)
 
     ejecutando = True
     while ejecutando:
-        # Calcular delta_tiempo en segundos para la animación
         dt = reloj.tick(FPS) / 1000.0
-        
         pos_raton = pygame.mouse.get_pos()
         click = False
 
@@ -63,40 +92,97 @@ def main():
             elif evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
                 click = True
 
-        # --- LÓGICA DE INTERFAZ (CONTROLADOR) ---
-        accion = renderer.manejar_eventos_ui(pos_raton, click)
+        # --- LÓGICA DE PANTALLA DE BIENVENIDA ---
+        if en_pantalla_bienvenida:
+            accion = welcome_screen.manejar_eventos(pos_raton, click)
+            
+            if accion == "CONTINUAR":
+                # Validar el mapa seleccionado
+                exito, mundo_actual, inicio, pasajeros, destino, error = validar_y_cargar_mapa(
+                    data_dir, welcome_screen.mapa_seleccionado
+                )
+                
+                if exito:
+                    # Crear renderer ahora que tenemos un mapa válido
+                    renderer = Renderer(ANCHO, ALTO)
+                    renderer.cargar_mundo(mundo_actual)
+                    en_pantalla_bienvenida = False
+                else:
+                    # Mostrar error en la pantalla de bienvenida
+                    welcome_screen.error_mensaje = error
+            
+            welcome_screen.dibujar(screen)
         
-        if accion == "CAMBIAR_ALGORITMO":
-            indice_algo = (indice_algo + 1) % len(algoritmos)
-            renderer.actualizar_texto_algoritmo(algoritmos[indice_algo])
+        # --- LÓGICA DE SIMULACIÓN ---
+        else:
+            if renderer is None:
+                continue
             
-        elif accion == "INICIAR":
-            # Aquí en el futuro llamaremos:
-            # path, nodos, prof, tiempo, costo = logic.algorithms.ejecutar(mundo, algoritmo)
+            accion = renderer.manejar_eventos_ui(pos_raton, click)
             
-            # Por ahora, simulamos un resultado exitoso para probar la UI
-            reportes["Estado"] = "Completado"
-            reportes["Nodos Expandidos"] = "142 (Simulado)"
-            reportes["Profundidad"] = "28 (Simulado)"
-            reportes["Tiempo de Cómputo"] = "45 ms (Simulado)"
+            if accion == "INICIAR":
+                # Obtener el algoritmo seleccionado del selector
+                algo_nombre = renderer.obtener_algoritmo_seleccionado()
+                
+                # Verificar que hay un algoritmo seleccionado
+                if not algo_nombre:
+                    reportes["Estado"] = "Error: Selecciona un algoritmo primero"
+                    continue
+                
+                # Verificar que hay un mapa cargado
+                if mundo_actual is None:
+                    reportes["Estado"] = "Error: Carga un mapa primero"
+                    reportes["Algoritmo"] = algo_nombre
+                else:
+                    # Ejecutar el algoritmo seleccionado
+                    algoritmo_func = ALGORITMOS[algo_nombre]
+                    
+                    try:
+                        # Medir tiempo de ejecución
+                        tracker.start_timer()
+                        resultado = algoritmo_func(mundo_actual, inicio, pasajeros, destino)
+                        tracker.stop_timer()
+                        
+                        if resultado is None:
+                            reportes["Estado"] = "No hay solución"
+                            reportes["Algoritmo"] = algo_nombre
+                            reportes["Nodos Expandidos"] = "0"
+                            reportes["Profundidad del Árbol"] = "0"
+                            reportes["Tiempo de Cómputo"] = f"{tracker.get_elapsed_time_ms():.3f} ms"
+                            reportes["Costo de Solución"] = "N/A"
+                        else:
+                            camino, nodos_expandidos, arbol_expansion, costo_final = resultado
+                            
+                            # Generar reporte usando StatsTracker
+                            report = tracker.generate_report(algo_nombre, nodos_expandidos, arbol_expansion, costo_final)
+                            
+                            # Actualizar reportes con el generado
+                            reportes.update(report)
+                            reportes["Estado"] = "Completado"
+                            
+                            # Inyectar el camino al motor gráfico
+                            renderer.iniciar_animacion(camino)
+                    
+                    except Exception as e:
+                        reportes["Estado"] = f"Error: {str(e)}"
+                        reportes["Algoritmo"] = algo_nombre
+                        print(f"Error durante ejecución: {e}")
             
-            algoritmo_actual = algoritmos[indice_algo]
-            if algoritmo_actual in ["Costo Uniforme", "A*"]:
-                reportes["Costo de Solución"] = "42 (Simulado)"
-            else:
-                reportes["Costo de Solución"] = "N/A"
-
-            # Inyectar el camino al motor gráfico
-            renderer.iniciar_animacion(CAMINO_PRUEBA)
+            elif accion == "RESET":
+                renderer.cargar_mundo(mundo_actual)
+                renderer.limpiar_selector_algoritmo()
+                reportes = {
+                    "Algoritmo": "-",
+                    "Nodos Expandidos": "-",
+                    "Profundidad del Árbol": "-",
+                    "Tiempo de Cómputo": "-",
+                    "Costo de Solución": "-",
+                    "Estado": "Reseteado"
+                }
             
-        elif accion == "RESET":
-            renderer.cargar_mundo(MATRIZ_PRUEBA)
-            reportes = { k: "-" for k in reportes }
-            reportes["Estado"] = "Reseteado"
-
-        # --- ACTUALIZAR Y DIBUJAR ---
-        renderer.actualizar(dt)
-        renderer.dibujar(reportes)
+            # --- ACTUALIZAR Y DIBUJAR SIMULACIÓN ---
+            renderer.actualizar(dt)
+            renderer.dibujar(reportes)
 
     pygame.quit()
     sys.exit()
