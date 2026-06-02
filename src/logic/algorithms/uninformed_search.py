@@ -24,7 +24,7 @@ def amplitud(mundo, inicio, pasajeros_totales, destino):
 
         # Meta: Todos recogidos y en destino (5) [cite: 7, 26]
         if len(recogidos_tupla) == len(pasajeros_totales) and mundo[r][c] == 5:
-            return camino + [(r, c)], nodos_expandidos, visitados
+            return camino + [(r, c)], nodos_expandidos, visitados, None
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]: # [cite: 16]
             nr, nc = r + dr, c + dc
@@ -55,7 +55,7 @@ def costo_uniforme(mundo, inicio, pasajeros_totales, destino):
         recogidos_tupla = tuple(sorted(nuevos_recogidos))
 
         if len(recogidos_tupla) == len(pasajeros_totales) and mundo[r][c] == 5:
-            return camino + [(r, c)], nodos_expandidos, visitados
+            return camino + [(r, c)], nodos_expandidos, visitados, g
 
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]: # [cite: 16]
             nr, nc = r + dr, c + dc
@@ -96,7 +96,7 @@ def profundidad_evitando_ciclos(mundo, inicio, pasajeros_totales, destino):
 
         # 2. Condición de meta: pasajeros completos y posición en destino (valor 5) [cite: 26, 52]
         if len(recogidos_tupla) == len(pasajeros_totales) and mundo[r][c] == 5:
-            return camino + [(r, c)], nodos_expandidos, visitados
+            return camino + [(r, c)], nodos_expandidos, visitados, None
 
         # 3. Explorar sucesores (Arriba, Abajo, Izquierda, Derecha) [cite: 16]
         for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
