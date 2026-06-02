@@ -443,6 +443,9 @@ class Renderer:
         self.boton_reset = BotonUI(btn_x + 310, 205, 120, 45, "Resetear", self.fuente_boton)
         
         self.botones = [self.boton_iniciar, self.boton_reset]
+        self.boton_ver_arbol = BotonUI(btn_x, alto - 65, 300, 45, "Mostrar árbol de búsqueda", self.fuente_boton)
+        self.botones.append(self.boton_ver_arbol) # Lo sumamos a la lista de eventos genéricos
+        self.arbol_disponible = False # Flag de control
 
     def cargar_mundo(self, matriz: List[List[int]]):
         """Carga la matriz inicial y extrae pasajeros y el inicio para resetear la vista."""
@@ -497,20 +500,21 @@ class Renderer:
             self.pos_taxi_visual = (r_visual, c_visual)
 
     def manejar_eventos_ui(self, pos_raton: Tuple[int, int], click: bool) -> Optional[str]:
-        """Maneja el hover y click de los elementos de la interfaz."""
-        # Manejar selector de algoritmo
         self.selector_algoritmo.manejar_eventos(pos_raton, click)
         
-        # Manejar botones
         for btn in self.botones:
             btn.chequear_hover(pos_raton)
             if click and btn.is_hovered:
                 if btn == self.boton_iniciar:
-                    # Validar que hay un algoritmo seleccionado
                     if not self.selector_algoritmo.obtener_algoritmo():
                         return None
                     return "INICIAR"
-                if btn == self.boton_reset: return "RESET"
+                if btn == self.boton_reset: 
+                    self.arbol_disponible = False # Bloquear árbol al resetear
+                    return "RESET"
+                if btn == self.boton_ver_arbol:
+                    if self.arbol_disponible:
+                        return "VER_ARBOL"
         return None
     
     def obtener_algoritmo_seleccionado(self) -> Optional[str]:
@@ -582,11 +586,13 @@ class Renderer:
         tit = self.fuente_titulo.render("Panel de Control", True, COLOR_TEXT)
         self.pantalla.blit(tit, (panel_rect.left + 25, 40))
 
-        # 3. Botones estáticos (Iniciar y Reset)
+        # 3. Dibujar Botones normales (Iniciar y Reset)
+        # Evitamos dibujar el botón del árbol aquí de forma automática para controlarlo abajo
         for btn in self.botones:
-            btn.dibujar(self.pantalla)
+            if btn != self.boton_ver_arbol:
+                btn.dibujar(self.pantalla)
 
-        # 4. Título Reportes y Datos de Reportes
+        # 4. Título Reportes y Datos de Reportes (Sin duplicados)
         rep_tit = self.fuente_titulo.render("Reporte de Ejecución", True, COLOR_TEXT)
         self.pantalla.blit(rep_tit, (panel_rect.left + 25, 410))
 
@@ -596,21 +602,15 @@ class Renderer:
             self.pantalla.blit(txt, (panel_rect.left + 25, y_offset))
             y_offset += 30
 
-        # 5. Mover el Selector de Algoritmo AL FINAL para que flote sobre todo lo demás
+        # 5. Dibujar de manera especial el botón "Mostrar árbol de búsqueda"
+        if not self.arbol_disponible:
+            # Si NO está disponible: lo dibujamos como un rectángulo gris estático y texto apagado
+            pygame.draw.rect(self.pantalla, (220, 220, 220), self.boton_ver_arbol.rect, border_radius=8)
+            txt = self.boton_ver_arbol.font.render(self.boton_ver_arbol.text, True, (160, 160, 160))
+            self.pantalla.blit(txt, txt.get_rect(center=self.boton_ver_arbol.rect.center))
+        else:
+            # Si SÍ está disponible: llamamos a su método interactivo normal (cambiará de color al pasar el mouse)
+            self.boton_ver_arbol.dibujar(self.pantalla)
+
+        # 6. El Selector de Algoritmo AL FINAL para que flote sobre todo lo demás al desplegarse
         self.selector_algoritmo.dibujar(self.pantalla)
-        # Botones
-        for btn in self.botones:
-            btn.dibujar(self.pantalla)
-
-        # Título Reportes
-        rep_tit = self.fuente_titulo.render("Reporte de Ejecución", True, COLOR_TEXT)
-        self.pantalla.blit(rep_tit, (panel_rect.left + 25, 410))
-
-        # Datos de Reportes (Iteración dinámica)
-        y_offset = 470
-        for clave, valor in reportes.items():
-            txt = self.fuente_texto.render(f"{clave}: {valor}", True, COLOR_TEXT)
-            self.pantalla.blit(txt, (panel_rect.left + 25, y_offset))
-            y_offset += 30
-
-        # Espacio final del panel (puede usarse para indicadores adicionales)
